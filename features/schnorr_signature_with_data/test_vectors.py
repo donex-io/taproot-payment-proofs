@@ -14,6 +14,17 @@ from schnorr_signature_with_data import *
 # * Add test of data proof by `proof_data()`
 #
 
+import inspect
+
+data = bytes_from_int(1234567890)
+
+def test_sig_with_data(seckey, aux_rand, msg):
+    sig_mod = schnorr_sign_with_data(msg, seckey, aux_rand, data)
+    j = determine_j(msg, int_from_bytes(seckey), aux_rand)
+    J = point_mul(G, j)
+    calling_function_name = inspect.currentframe().f_back.f_code.co_name
+    print(calling_function_name + " data signature test: ", proof_data(sig_mod, data, J))
+
 
 def is_square(x):
     return int(pow(x, (p - 1) // 2, p)) == 1
@@ -51,6 +62,8 @@ def vector0():
     R = lift_x(sig[0:32])
     assert(not has_square_y(R))
 
+    test_sig_with_data(seckey, aux_rand, msg)
+
     return (seckey, pubkey, aux_rand, msg, sig, "TRUE", None)
 
 def vector1():
@@ -63,6 +76,8 @@ def vector1():
     # The point reconstructed from the R.x coordinate has a square Y coordinate.
     R = lift_x(sig[0:32])
     assert(has_square_y(R))
+
+    test_sig_with_data(seckey, aux_rand, msg)
 
     return (seckey, pubkey_gen(seckey), aux_rand, msg, sig, "TRUE", None)
 
@@ -82,6 +97,8 @@ def vector2():
     R = lift_x(sig[0:32])
     assert(R[0] % 2 == 1)
 
+    test_sig_with_data(seckey, aux_rand, msg)
+
     return (seckey, pubkey, aux_rand, msg, sig, "TRUE", None)
 
 def vector3():
@@ -96,6 +113,10 @@ def vector3():
     aux_rand = bytes_from_int(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
 
     sig = schnorr_sign(msg, seckey, aux_rand)
+
+    # TODO Why does this not validate to TRUE?
+    test_sig_with_data(seckey, aux_rand, msg) 
+
     return (seckey, pubkey_gen(seckey), aux_rand, msg, sig, "TRUE", "test fails if msg is reduced modulo p or n")
 
 # Signs with a given nonce. This can be INSECURE and is only INTENDED FOR
@@ -136,6 +157,8 @@ def vector5():
     pubkey = bytes_from_int(0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34)
     assert(lift_x(pubkey) is None)
 
+    test_sig_with_data(seckey, default_aux_rand, msg)
+
     return (None, pubkey, None, msg, sig, "FALSE", "public key not on the curve")
 
 def vector6():
@@ -155,6 +178,7 @@ def vector7():
     msg = int_from_bytes(default_msg)
     neg_msg = bytes_from_int(n - msg)
     sig = schnorr_sign(neg_msg, seckey, default_aux_rand)
+    test_sig_with_data(seckey, default_aux_rand, neg_msg)
     return (None, pubkey_gen(seckey), None, bytes_from_int(msg), sig, "FALSE", "negated message")
 
 def vector8():
@@ -262,3 +286,24 @@ def vector14():
     assert(lift_x(bytes_from_int(pubkey_int % p)) is not None)
 
     return (None, pubkey, None, msg, sig, "FALSE", "public key is not a valid X coordinate because it exceeds the field size")
+
+vectors = [
+        vector0,
+        vector1,
+        vector2,
+        vector3,
+        vector4,
+        vector5,
+        vector6,
+        vector7,
+        vector8,
+        vector9,
+        vector10,
+        vector11,
+        vector12,
+        vector13,
+        vector14
+    ]
+
+for vector in vectors:
+    vector()
