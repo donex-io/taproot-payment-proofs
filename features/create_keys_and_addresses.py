@@ -1,79 +1,56 @@
-print('\n')
-
 # ----------------------------------------
 ## Create keys
 # ----------------------------------------
 
-# Create randomized private key
+from reference_implementations.schnorr_signatures.reference import *
 
-import random
+# Create random 256-bit secret that is later turned into a private key
+def create_random_secret() -> bytes:
+    import random
+    random_secret = (random.getrandbits(256)).to_bytes(32, byteorder="big", signed=False)
+    if not (1 <= int_from_bytes(random_secret) <= n - 1):
+        raise ValueError('The random_secret must be an integer in the range 1..n-1.')
+    return random_secret
 
-private_key = (random.getrandbits(256)).to_bytes(32, byteorder="little", signed=False)
-print(f'private_key                  =   {private_key.hex()}', '\n')
-
-
-# Create public key data in different formats (we eventually need the compressed public key)
-
-from reference_implementations.schnorr_signatures.reference import bytes_from_int, x, y, pubkey_gen, lift_x
-
-x_coordinate = pubkey_gen(private_key)
-print(f'x_coordinate                 =   {x_coordinate.hex()}', '\n')
-
-pubkey_point = lift_x(x_coordinate)
-
-x_coordinate = bytes_from_int(x(pubkey_point)).hex()
-y_coordinate = bytes_from_int(y(pubkey_point)).hex()
-
-print(f'x_coordinate                 =   {x_coordinate}', '\n')
-print(f'y_coordinate                 =   {y_coordinate}', '\n')
-
-if y(pubkey_point) % 2 == 0:
-    compressed_public_key = bytes.fromhex(f'02{x_coordinate}')
-else: 
-    compressed_public_key = bytes.fromhex(f'03{x_coordinate}')
-
-print(f'compressed_public_key        = {compressed_public_key.hex()}', '\n')
-
-
-# create hashed public key
-
-import hashlib
-
-hashed_compressed_public_key = hashlib.sha256(compressed_public_key).digest()
-print(f'hashed_compressed_public_key =   {hashed_compressed_public_key.hex()}', '\n')
-
+# Determine private-public key pair (32-byte public key --> only x-coordinate) from secret so that only even y-values of public key occur
+def determine_private_public_key_pair(secret: bytes) -> Tuple[bytes, bytes]:
+    secret_int = int_from_bytes(secret)
+    public_key_point = point_mul(G, secret_int)
+    assert public_key_point is not None
+    if has_even_y(public_key_point):
+        private_key = secret  
+    else:
+        private_key = bytes_from_int((n - secret_int))
+    public_key = pubkey_gen(secret)
+    return (private_key, public_key)
 
 
 # ----------------------------------------
 ## Create bech32m address for testnet
 # ----------------------------------------
 
-# bech32_encode(hrp, data, spec) for testnet address hrp = 'tb' , data = sha256(compressed_public_key) , spec = 2 (bech32m)
-
-from reference_implementations.bech32m_addresses.segwit_addr import encode
-
-bech32m_address = encode('tb', 1, hashed_compressed_public_key)
-print(f'bech32m_address              =   {bech32m_address}', '\n')
+def create_bech32m_address(public_key):
+    from reference_implementations.bech32m_addresses.segwit_addr import encode
+    bech32m_address = encode('tb', 1, public_key) # last argument is witness version
+    return bech32m_address
 
 
 # ----------------------------------------
 ## Write private key and address to file
 # ----------------------------------------
 
-# Determine file path
-
-import os
-
-script_dir = os.path.dirname(__file__)
-rel_path = "create_keys_and_addresses/keys_and_addresses.csv"
-abs_file_path = os.path.join(script_dir, rel_path)
-
-
-# Write to file
-
-import csv
-
-with open(abs_file_path, 'a', newline='') as csvfile:
-    keys = csv.writer(csvfile, delimiter=' ',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-    keys.writerow([bech32m_address, private_key.hex()])
+def write_address_and_key_to_file(bech32m_address: str, private_key: bytes):   
+    
+    # Determine file path
+    import os
+    script_dir = os.path.dirname(__file__)
+    rel_path = "create_keys_and_addresses/keys_and_addresses.csv"
+    abs_file_path = os.path.join(script_dir, rel_path)
+    
+    # Determine file path
+    import csv
+    with open(abs_file_path, 'a', newline='') as csvfile:
+        keys = csv.writer(csvfile, delimiter=' ',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        keys.writerow([bech32m_address, private_key.hex()])
+    print('Writing address and key to CSV file was successful')
