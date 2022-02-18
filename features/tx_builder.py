@@ -1,0 +1,192 @@
+import hashlib
+
+SIGHASH_DEFAULT = '00' # A new hashtype which results in signing over the whole transaction just as for SIGHASH_ALL.
+SIGHASH_ALL = '01'
+SIGHASH_NONE = '02'
+SIGHASH_SINGLE = '03'
+SIGHASH_ANYONECANPAY = '80' # Once an input signed with SIGHASH_ALL|ANYONECANPAY is added to a transaction outputs cannot be changed or added without that signature being invalidated.
+# Note:
+# SIGHASH_ANYONECANPAY | SIGHASH_ALL = '81'
+# SIGHASH_ANYONECANPAY | SIGHASH_NONE = '82'
+# SIGHASH_ANYONECANPAY | SIGHASH_SINGLE = '83'
+
+def create_signature_message (
+    hash_type: bytes,
+    nVersion: bytes,
+    nLockTime: bytes,
+    sha_prevouts: bytes,
+    sha_amounts: bytes,
+    sha_scriptpubkeys: bytes,
+    sha_sequences: bytes,
+    sha_outputs: bytes,
+    spend_type: bytes,
+    outpoint: bytes,
+    amount: bytes,
+    scriptPubKey: bytes,
+    nSequence: bytes,
+    input_index: bytes,
+    have_annex: bool,
+    sha_annex: bytes,
+    sha_single_output: bytes
+    ):
+
+# // Epoch
+# static constexpr uint8_t EPOCH = 0;
+# ss << EPOCH;
+# https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L1530
+
+# Taproot key path spending signature validation
+# To validate a signature sig with public key q:
+# * If the sig is 64 bytes long, return Verify(q, hashTapSighash(0x00 || SigMsg(0x00, 0)), sig)[20], where Verify is defined in BIP340.
+# * If the sig is 65 bytes long, return sig[64] ≠ 0x00[21] and Verify(q, hashTapSighash(0x00 || SigMsg(sig[64], 0)), sig[0:64]).
+# * Otherwise, fail[22].
+# https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#taproot-key-path-spending-signature-validation
+# https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-20
+
+    preimage = bytearray.fromhex("00")
+
+# TAPROOT SPEC: 
+# The function SigMsg(hash_type, ext_flag) computes the common portion of the message being signed as a byte array. It is implicitly also a function of the spending transaction and the outputs it spends, but these are not listed to keep notation simple.
+# The parameter hash_type is an 8-bit unsigned value. The SIGHASH encodings from the legacy script system are reused, including SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, and SIGHASH_ANYONECANPAY. We define a new hashtype SIGHASH_DEFAULT (value 0x00) which results in signing over the whole transaction just as for SIGHASH_ALL. The following restrictions apply, which cause validation failure if violated:
+# Using any undefined hash_type (not 0x00, 0x01, 0x02, 0x03, 0x81, 0x82, or 0x83[13]).
+# Using SIGHASH_SINGLE without a "corresponding output" (an output with the same index as the input being verified).
+# The parameter ext_flag is an integer in range 0-127, and is used for indicating (in the message) that extensions are appended to the output of SigMsg()[14].
+# If the parameters take acceptable values, the message is the concatenation of the following data, in order (with byte size of each item listed in parentheses). Numerical values in 2, 4, or 8-byte are encoded in little-endian.
+# https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#common-signature-message
+
+# Control:
+# hash_type (1).
+
+    if len(hash_type) != 1:
+        raise ValueError('hash_type must be a 1-byte array.')
+    preimage.extend(hash_type)
+
+# Transaction data:
+# nVersion (4): the nVersion of the transaction.
+
+    if len(nVersion) != 4:
+        raise ValueError('nVersion must be a 4-byte array.')
+    preimage.extend(nVersion)
+
+# nLockTime (4): the nLockTime of the transaction.
+
+    if len(nLockTime) != 4:
+        raise ValueError('nLockTime must be a 4-byte array.')
+    preimage.extend(nLockTime)
+
+# If the hash_type & 0x80 does not equal SIGHASH_ANYONECANPAY:
+
+    if hash_type.hex() != SIGHASH_ANYONECANPAY:
+
+    # sha_prevouts (32): the SHA256 of the serialization of all input outpoints.
+
+        if len(sha_prevouts) != 32:
+            raise ValueError('sha_prevouts must be a 32-byte array.')
+        preimage.extend(sha_prevouts)
+
+    # sha_amounts (32): the SHA256 of the serialization of all spent output amounts.
+
+        if len(sha_amounts) != 32:
+            raise ValueError('sha_amounts must be a 32-byte array.')
+        preimage.extend(sha_amounts)
+
+    # sha_scriptpubkeys (32): the SHA256 of all spent outputs' scriptPubKeys, serialized as script inside CTxOut.
+
+        if len(sha_scriptpubkeys) != 32:
+            raise ValueError('sha_scriptpubkeys must be a 32-byte array.')
+        preimage.extend(sha_scriptpubkeys)
+
+    # sha_sequences (32): the SHA256 of the serialization of all input nSequence.
+
+        if len(sha_sequences) != 32:
+            raise ValueError('sha_sequences must be a 32-byte array.')
+        preimage.extend(sha_sequences)
+
+# If hash_type & 3 does not equal SIGHASH_NONE or SIGHASH_SINGLE:
+# TODO Conflict to Bitcoin Core?
+# https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L1548
+#  if (output_type == SIGHASH_ALL) {
+#     ss << cache.m_outputs_single_hash;
+# }
+
+    if hash_type.hex() == SIGHASH_ALL:
+
+    # sha_outputs (32): the SHA256 of the serialization of all outputs in CTxOut format.
+
+        if len(sha_outputs) != 32:
+            raise ValueError('sha_outputs must be a 32-byte array.')
+        preimage.extend(sha_outputs)
+
+# Data about this input:
+# spend_type (1): equal to (ext_flag * 2) + annex_present, where annex_present is 0 if no annex is present, or 1 otherwise (the original witness stack has two or more witness elements, and the first byte of the last element is 0x50)
+
+    if len(spend_type) != 1:
+        raise ValueError('spend_type must be a 1-byte array.')
+    preimage.extend(spend_type)
+
+# If hash_type & 0x80 equals SIGHASH_ANYONECANPAY:
+
+    if hash_type.hex() == SIGHASH_ANYONECANPAY:
+
+    # outpoint (36): the COutPoint of this input (32-byte hash + 4-byte little-endian).
+
+        if len(outpoint) != 36:
+            raise ValueError('outpoint must be a 36-byte array.')
+        preimage.extend(outpoint)
+
+    # amount (8): value of the previous output spent by this input.
+
+        if len(amount) != 8:
+            raise ValueError('amount must be a 8-byte array.')
+        preimage.extend(amount)
+
+    # scriptPubKey (35): scriptPubKey of the previous output spent by this input, serialized as script inside CTxOut. Its size is always 35 bytes.
+
+        if len(scriptPubKey) != 35:
+            raise ValueError('scriptPubKey must be a 35-byte array.')
+        preimage.extend(scriptPubKey)
+
+    # nSequence (4): nSequence of this input.
+
+        if len(nSequence) != 4:
+            raise ValueError('nSequence must be a 4-byte array.')
+        preimage.extend(nSequence)
+
+# If hash_type & 0x80 does not equal SIGHASH_ANYONECANPAY:
+
+    if hash_type.hex() != SIGHASH_ANYONECANPAY:
+
+    # input_index (4): index of this input in the transaction input vector. Index of the first input is 0.
+
+        if len(input_index) != 4:
+            raise ValueError('input_index must be a 4-byte array.')
+        preimage.extend(input_index)
+
+# If an annex is present (the lowest bit of spend_type is set):
+
+    if have_annex:
+
+    # sha_annex (32): the SHA256 of (compact_size(size of annex) || annex), where annex includes the mandatory 0x50 prefix.
+
+        if len(sha_annex) != 32:
+            raise ValueError('sha_annex must be a 32-byte array.')
+        preimage.extend(sha_annex)
+
+# Data about this output:
+# If hash_type & 3 equals SIGHASH_SINGLE:
+
+    if hash_type.hex() == SIGHASH_SINGLE:
+
+# sha_single_output (32): the SHA256 of the corresponding output in CTxOut format.
+
+        if len(sha_single_output) != 32:
+            raise ValueError('sha_single_output must be a 32-byte array.')
+        preimage.extend(sha_single_output)
+
+
+# Hashes that go into the signature message and the message itself are now computed with a single SHA256 invocation instead of double SHA256. There is no expected security improvement by doubling SHA256 because this only protects against length-extension attacks against SHA256 which are not a concern for signature messages because there is no secret data. Therefore doubling SHA256 is a waste of resources. The message computation now follows a logical order with transaction level data first, then input data and output data. This allows to efficiently cache the transaction part of the message across different inputs using the SHA256 midstate. Additionally, sub-hashes can be skipped when calculating the message (for example `sha_prevouts` if SIGHASH_ANYONECANPAY is set) instead of setting them to zero and then hashing them as in BIP143. Despite that, collisions are made impossible by committing to the length of the data (implicit in hash_type and spend_type) before the variable length data.
+# https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-16
+
+    signature_message = hashlib.sha256(bytes(preimage)).digest()
+
+    return signature_message
