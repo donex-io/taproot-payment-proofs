@@ -1,5 +1,138 @@
 import hashlib
 
+def build_serialized_signed_transaction(
+    nVersion: bytes,
+    marker: bytes,
+    flag: bytes,
+    count_txin: bytes,
+    txins: list,
+    count_txout: bytes,
+    txouts: list,
+    witness_data: list,
+    nLockTime: bytes
+):
+
+    serialized_signed_transaction = ""
+
+    if len(nVersion) != 4:
+        raise ValueError('nVersion must be a 4-byte array.')
+    serialized_signed_transaction += nVersion.hex()
+
+    if len(marker) != 1:
+        raise ValueError('marker must be a 1-byte array.')
+    serialized_signed_transaction += marker.hex()
+
+    if len(flag) != 1:
+        raise ValueError('flag must be a 1-byte array.')
+    serialized_signed_transaction += flag.hex()
+
+    if len(count_txin) != 1:
+        raise ValueError('count_txin must be a 1-byte array.')
+    serialized_signed_transaction += count_txin.hex()
+    count_txin_INT = int.from_bytes(count_txin, byteorder="little")
+
+    if len(txins) != count_txin_INT:
+        raise ValueError('txins length must equal count_txin.')
+    for txin in txins:
+
+        hash = txin["hash"]
+        if len(hash) != 32:
+            raise ValueError('hash must be a 32-byte array.')
+        serialized_signed_transaction += hash.hex()
+
+        output = txin["output"]
+        if len(output) != 4:
+            raise ValueError('output must be a 4-byte array.')
+        serialized_signed_transaction += output.hex()
+
+        lengthScriptSig = txin["lengthScriptSig"]
+        if len(lengthScriptSig) != 1:
+            raise ValueError('lengthScriptSig must be a 1-byte array.')
+        serialized_signed_transaction += lengthScriptSig.hex()
+        lengthScriptSig_INT = int.from_bytes(lengthScriptSig, byteorder="little")
+
+        scriptSig = txin["scriptSig"]
+        if len(scriptSig) != lengthScriptSig_INT:
+            raise ValueError('scriptSig length must equal lengthScriptSig.')
+        serialized_signed_transaction += scriptSig.hex()
+
+        nSequence = txin["nSequence"]
+        if len(nSequence) != 4:
+            raise ValueError('nSequence must be a 4-byte array.')
+        serialized_signed_transaction += nSequence.hex()
+
+    if len(count_txout) != 1:
+        raise ValueError('count_txout must be a 1-byte array.')
+    serialized_signed_transaction += count_txout.hex()
+    count_txout_INT = int.from_bytes(count_txout, byteorder="little")
+
+    if len(txouts) != count_txout_INT:
+        raise ValueError('txouts length must equal count_txout.')
+    for txout in txouts:
+
+        value = txout["value"]
+        if len(value) != 8:
+            raise ValueError('value must be a 8-byte array.')
+        serialized_signed_transaction += value.hex()
+
+        lengthScriptPubKey = txout["lengthScriptPubKey"]
+        if len(lengthScriptPubKey) != 1:
+            raise ValueError('lengthScriptPubKey must be a 1-byte array.')
+        serialized_signed_transaction += lengthScriptPubKey.hex()
+        lengthScriptPubKey_INT = int.from_bytes(lengthScriptPubKey, byteorder="little")
+
+        scriptPubKey = txout["scriptPubKey"]
+        if len(scriptPubKey) != lengthScriptPubKey_INT:
+            raise ValueError('scriptPubKey length must equal lengthScriptPubKey.')
+        serialized_signed_transaction += scriptPubKey.hex()
+
+    # Witness data not included in TXID
+    txid_preimage = serialized_signed_transaction
+    
+    if witness_data != None:
+        if len(witness_data) != count_txin_INT:
+            raise ValueError('witness_data length must equal count_txin.')
+        for witness_elements in witness_data:
+
+            if witness_elements["count_witness_elements"] == None:
+                serialized_signed_transaction += "00"
+            else:
+
+                count_witness_elements = witness_elements["count_witness_elements"]
+                if len(count_witness_elements) != 1:
+                    raise ValueError('count_witness_elements must be a 1-byte array.')
+                serialized_signed_transaction += count_witness_elements.hex()
+                count_witness_elements_INT = int.from_bytes(count_witness_elements, byteorder="little")
+
+                if len(witness_elements) != count_witness_elements_INT:
+                    raise ValueError('witness_elements length must equal count_witness_elements.')
+                for witness_element in witness_elements:
+
+                    lengthWitnessElement = witness_element["lengthWitnessElement"]
+                    if len(lengthWitnessElement) != 1:
+                        raise ValueError('lengthWitnessElement must be a 1-byte array.')
+                    serialized_signed_transaction += lengthWitnessElement.hex()
+                    lengthWitnessElement_INT = int.from_bytes(lengthWitnessElement, byteorder="little")
+
+                    witnessElement = txout["witnessElement"]
+                    if len(witnessElement) != lengthWitnessElement_INT:
+                        raise ValueError('witnessElement length must equal lengthWitnessElement.')
+                    serialized_signed_transaction += witnessElement.hex()
+
+    if len(nLockTime) != 4:
+        raise ValueError('nLockTime must be a 4-byte array.')
+    serialized_signed_transaction += nLockTime.hex()
+
+    txid_preimage += nLockTime
+
+    def dSHA256 (input):
+        return hashlib.sha256(hashlib.sha256(bytes(input)).digest()).digest()
+
+    txid = dSHA256(bytes.fromhex(txid_preimage)[::-1]).hex()
+
+    return serialized_signed_transaction, txid
+
+
 SIGHASH_DEFAULT = '00' # A new hashtype which results in signing over the whole transaction just as for SIGHASH_ALL.
 SIGHASH_ALL = '01'
 SIGHASH_NONE = '02'
@@ -28,7 +161,7 @@ def create_signature_message (
     have_annex: bool,
     sha_annex: bytes,
     sha_single_output: bytes
-    ):
+):
 
 # // Epoch
 # static constexpr uint8_t EPOCH = 0;
