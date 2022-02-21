@@ -28,9 +28,16 @@ from scan_utxo_set import *
 
 address = 'tb1pq0vkpu8qy5x60rp0cg2j28f85dlw6jaq5ef6atkul49n08ntav4qdd0lye'
 
-print('\n',f"Start scanning for address: {address}", '\n')
-print(start_scanutxos(bt_cli, address))
+scan_result = start_scanutxos(bt_cli, address)
+print(scan_result, '\n')
 
+chosen_match = choose_matching_UTXOs(50000, 0, scan_result)
+print(chosen_match, '\n')
+
+returned_match = return_matching_UTXOs(chosen_match[0], scan_result)
+print(returned_match, '\n')
+
+pretty_print_utxo(returned_match)
 
 # ----------------------------------------
 ## Async tests (not succesful yet)
