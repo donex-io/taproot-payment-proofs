@@ -7,21 +7,23 @@ from reference_implementations.schnorr_signatures.reference import *
 # Create random 256-bit secret that is later turned into a private key
 def create_random_secret() -> bytes:
     import random
-    random_secret = (random.getrandbits(256)).to_bytes(32, byteorder="big", signed=False)
-    if not (1 <= int_from_bytes(random_secret) <= n - 1):
-        raise ValueError('The random_secret must be an integer in the range 1..n-1.')
-    return random_secret
+    while True:
+        random_secret_32byte = (random.getrandbits(256)).to_bytes(32, byteorder="big", signed=False)
+        if (1 <= int_from_bytes(random_secret_32byte) <= n - 1):
+            return random_secret_32byte
 
 # Determine private-public key pair (32-byte public key --> only x-coordinate) from secret so that only even y-values of public key occur
-def determine_private_public_key_pair(secret: bytes) -> Tuple[bytes, bytes]:
-    secret_int = int_from_bytes(secret)
+def determine_private_public_key_pair(secret_32byte: bytes) -> Tuple[bytes, bytes]:
+    if len(secret_32byte) != 32:
+         raise ValueError('The secret must be 32 bytes long.')
+    secret_int = int_from_bytes(secret_32byte)
     public_key_point = point_mul(G, secret_int)
     assert public_key_point is not None
     if has_even_y(public_key_point):
-        private_key = secret  
+        private_key = secret_32byte  
     else:
         private_key = bytes_from_int((n - secret_int))
-    public_key = pubkey_gen(secret)
+    public_key = bytes_from_point(public_key_point)
     return (private_key, public_key)
 
 
@@ -29,9 +31,12 @@ def determine_private_public_key_pair(secret: bytes) -> Tuple[bytes, bytes]:
 ## Create bech32m address for testnet
 # ----------------------------------------
 
-def create_bech32m_address(public_key):
-    from reference_implementations.bech32m_addresses.segwit_addr import encode
-    bech32m_address = encode('tb', 1, public_key) # last argument is witness version
+def create_bech32m_taproot_address(public_key, network):
+    from reference_implementations.bech32m_addresses.segwit_addr import encode   
+    if network == "testnet":
+        bech32m_address = encode('tb', 1, public_key) # arguments: network, witness_version, public_key
+    elif network == "mainnet":
+        bech32m_address = encode('bc', 1, public_key) # arguments: network, witness_version, public_key
     return bech32m_address
 
 

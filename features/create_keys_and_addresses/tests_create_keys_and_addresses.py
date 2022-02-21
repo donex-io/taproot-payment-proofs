@@ -14,7 +14,7 @@ from create_keys_and_addresses import *
 random_secret = create_random_secret()
 [private_key, public_key] = determine_private_public_key_pair(random_secret)
 test_public_key = pubkey_gen(private_key)
-bech32m_address = create_bech32m_address(public_key)
+bech32m_address = create_bech32m_taproot_address(public_key, "testnet")
 
 print('\n')
 
