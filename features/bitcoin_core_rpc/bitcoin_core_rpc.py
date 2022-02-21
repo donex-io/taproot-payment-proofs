@@ -2,7 +2,7 @@
 from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 
 # setup JSON-rpc connection with bitcoind, credentials are set in bitcoin.conf
-bt_cli = AuthServiceProxy("http://%s:%s@127.0.0.1:18332"%('admin', 'admin'))
+bt_cli = AuthServiceProxy("http://%s:%s@127.0.0.1:18332"%('admin', 'admin'), timeout=120)
 
 # test some RPC calls
 
