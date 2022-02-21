@@ -44,7 +44,7 @@ def create_bech32m_taproot_address(public_key, network):
 ## Write private key and address to file
 # ----------------------------------------
 
-def write_address_and_key_to_file(bech32m_address: str, private_key: bytes):   
+def write_address_and_key_to_file(bech32m_address: str, private_key: bytes, public_key: bytes):   
     
     # Determine file path
     import os
@@ -57,5 +57,5 @@ def write_address_and_key_to_file(bech32m_address: str, private_key: bytes):
     with open(abs_file_path, 'a', newline='') as csvfile:
         keys = csv.writer(csvfile, delimiter=' ',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        keys.writerow([bech32m_address, private_key.hex()])
+        keys.writerow([bech32m_address, private_key.hex(), public_key.hex()])
     print('Writing address and key to CSV file was successful')
