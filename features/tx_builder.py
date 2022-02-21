@@ -17,6 +17,7 @@ def build_serialized_signed_transaction(
     if len(nVersion) != 4:
         raise ValueError('nVersion must be a 4-byte array.')
     serialized_signed_transaction += nVersion.hex()
+    nVersion_INT = int.from_bytes(nVersion, byteorder="little")
 
     if len(marker) != 1:
         raise ValueError('marker must be a 1-byte array.')
@@ -34,29 +35,32 @@ def build_serialized_signed_transaction(
     if len(txins) != count_txin_INT:
         raise ValueError('txins length must equal count_txin.')
     for txin in txins:
+        if len(txin) != 5:
+            raise ValueError('txin must contain 5 elements.')
 
-        hash = txin["hash"]
+        hash = txin[0]
         if len(hash) != 32:
             raise ValueError('hash must be a 32-byte array.')
         serialized_signed_transaction += hash.hex()
 
-        output = txin["output"]
+        output = txin[1]
         if len(output) != 4:
             raise ValueError('output must be a 4-byte array.')
         serialized_signed_transaction += output.hex()
 
-        lengthScriptSig = txin["lengthScriptSig"]
+        lengthScriptSig = txin[2]
         if len(lengthScriptSig) != 1:
             raise ValueError('lengthScriptSig must be a 1-byte array.')
         serialized_signed_transaction += lengthScriptSig.hex()
         lengthScriptSig_INT = int.from_bytes(lengthScriptSig, byteorder="little")
 
-        scriptSig = txin["scriptSig"]
-        if len(scriptSig) != lengthScriptSig_INT:
-            raise ValueError('scriptSig length must equal lengthScriptSig.')
-        serialized_signed_transaction += scriptSig.hex()
+        if lengthScriptSig_INT > 0:
+            scriptSig = txin[3]
+            if len(scriptSig) != lengthScriptSig_INT:
+                raise ValueError('scriptSig length must equal lengthScriptSig.')
+            serialized_signed_transaction += scriptSig.hex()
 
-        nSequence = txin["nSequence"]
+        nSequence = txin[4]
         if len(nSequence) != 4:
             raise ValueError('nSequence must be a 4-byte array.')
         serialized_signed_transaction += nSequence.hex()
@@ -69,52 +73,58 @@ def build_serialized_signed_transaction(
     if len(txouts) != count_txout_INT:
         raise ValueError('txouts length must equal count_txout.')
     for txout in txouts:
+        if len(txout) != 3:
+            raise ValueError('txout must contain 3 elements.')
 
-        value = txout["value"]
+        value = txout[0]
         if len(value) != 8:
             raise ValueError('value must be a 8-byte array.')
         serialized_signed_transaction += value.hex()
 
-        lengthScriptPubKey = txout["lengthScriptPubKey"]
+        lengthScriptPubKey = txout[1]
         if len(lengthScriptPubKey) != 1:
             raise ValueError('lengthScriptPubKey must be a 1-byte array.')
         serialized_signed_transaction += lengthScriptPubKey.hex()
         lengthScriptPubKey_INT = int.from_bytes(lengthScriptPubKey, byteorder="little")
 
-        scriptPubKey = txout["scriptPubKey"]
-        if len(scriptPubKey) != lengthScriptPubKey_INT:
-            raise ValueError('scriptPubKey length must equal lengthScriptPubKey.')
-        serialized_signed_transaction += scriptPubKey.hex()
+        if lengthScriptPubKey_INT > 0:
+            scriptPubKey = txout[2]
+            if len(scriptPubKey) != lengthScriptPubKey_INT:
+                raise ValueError('scriptPubKey length must equal lengthScriptPubKey.')
+            serialized_signed_transaction += scriptPubKey.hex()
 
     # Witness data not included in TXID
     txid_preimage = serialized_signed_transaction
     
-    if witness_data != None:
+    if nVersion_INT == 1:   # TODO If tx version == 1, witness data is present. Is that statement true?
         if len(witness_data) != count_txin_INT:
             raise ValueError('witness_data length must equal count_txin.')
-        for witness_elements in witness_data:
+        for witness in witness_data:
 
-            if witness_elements["count_witness_elements"] == None:
+            count_witness_elements = witness[0]
+            if count_witness_elements == None:
                 serialized_signed_transaction += "00"
             else:
 
-                count_witness_elements = witness_elements["count_witness_elements"]
                 if len(count_witness_elements) != 1:
                     raise ValueError('count_witness_elements must be a 1-byte array.')
                 serialized_signed_transaction += count_witness_elements.hex()
                 count_witness_elements_INT = int.from_bytes(count_witness_elements, byteorder="little")
 
-                if len(witness_elements) != count_witness_elements_INT:
+                if len(witness)-1 != count_witness_elements_INT:
                     raise ValueError('witness_elements length must equal count_witness_elements.')
-                for witness_element in witness_elements:
+                for i in range(1,count_witness_elements_INT):
+                    witness_element = witness[i]
+                    if len(witness_element) != 2:
+                        raise ValueError('witness_element must contain 2 elements.')
 
-                    lengthWitnessElement = witness_element["lengthWitnessElement"]
+                    lengthWitnessElement = witness_element[0]
                     if len(lengthWitnessElement) != 1:
                         raise ValueError('lengthWitnessElement must be a 1-byte array.')
                     serialized_signed_transaction += lengthWitnessElement.hex()
                     lengthWitnessElement_INT = int.from_bytes(lengthWitnessElement, byteorder="little")
 
-                    witnessElement = txout["witnessElement"]
+                    witnessElement = witness_element[1]
                     if len(witnessElement) != lengthWitnessElement_INT:
                         raise ValueError('witnessElement length must equal lengthWitnessElement.')
                     serialized_signed_transaction += witnessElement.hex()
@@ -123,7 +133,7 @@ def build_serialized_signed_transaction(
         raise ValueError('nLockTime must be a 4-byte array.')
     serialized_signed_transaction += nLockTime.hex()
 
-    txid_preimage += nLockTime
+    txid_preimage += nLockTime.hex()
 
     def dSHA256 (input):
         return hashlib.sha256(hashlib.sha256(bytes(input)).digest()).digest()
@@ -133,15 +143,90 @@ def build_serialized_signed_transaction(
     return serialized_signed_transaction, txid
 
 
-SIGHASH_DEFAULT = '00' # A new hashtype which results in signing over the whole transaction just as for SIGHASH_ALL.
-SIGHASH_ALL = '01'
-SIGHASH_NONE = '02'
-SIGHASH_SINGLE = '03'
-SIGHASH_ANYONECANPAY = '80' # Once an input signed with SIGHASH_ALL|ANYONECANPAY is added to a transaction outputs cannot be changed or added without that signature being invalidated.
+def sha_txins (txins: list):
+    preimage_prevouts = bytearray.fromhex("")
+    preimage_scriptpubkeys = bytearray.fromhex("")
+    preimage_sequences = bytearray.fromhex("")
+    for txin in txins:
+
+        hash = txin[0]
+        if len(hash) != 32:
+            raise ValueError('hash must be a 32-byte array.')
+        preimage_prevouts.extend(hash)
+
+        output = txin[1]
+        if len(output) != 4:
+            raise ValueError('output must be a 4-byte array.')
+        preimage_prevouts.extend(output)
+
+        lengthScriptSig = txin[2]
+        if len(lengthScriptSig) != 1:
+            raise ValueError('lengthScriptSig must be a 1-byte array.')
+        lengthScriptSig_INT = int.from_bytes(lengthScriptSig, byteorder="little")
+        # TODO: Preimage of length of script required?
+
+        if lengthScriptSig_INT > 0:
+            scriptSig = txin[3]
+            if len(scriptSig) != lengthScriptSig_INT:
+                raise ValueError('scriptSig length must equal lengthScriptSig.')
+            preimage_scriptpubkeys.extend(output)
+
+        nSequence = txin[4]
+        if len(nSequence) != 4:
+            raise ValueError('nSequence must be a 4-byte array.')
+        preimage_sequences.extend(output)
+
+    sha_prevouts = hashlib.sha256(bytes(preimage_prevouts)).digest()
+    sha_scriptpubkeys = hashlib.sha256(bytes(preimage_scriptpubkeys)).digest()
+    sha_sequences = hashlib.sha256(bytes(preimage_sequences)).digest()
+    
+    return sha_prevouts, sha_scriptpubkeys, sha_sequences
+
+def sha_amounts (amounts: list):
+    preimage = bytearray.fromhex("")
+    for amount in amounts:
+        if len(amount) != 8:
+            raise ValueError('amount must be a 8-byte array.')
+        preimage.extend(amount)
+    return hashlib.sha256(bytes(preimage)).digest()
+
+def sha_outputs (txouts: list):
+    preimage = bytearray.fromhex("")
+    for txout in txouts:
+        if len(txout) != 3:
+            raise ValueError('txout must contain 3 elements.')
+
+        value = txout[0]
+        if len(value) != 8:
+            raise ValueError('value must be a 8-byte array.')
+        preimage.extend(value)
+
+        lengthScriptPubKey = txout[1]
+        if len(lengthScriptPubKey) != 1:
+            raise ValueError('lengthScriptPubKey must be a 1-byte array.')
+        preimage.extend(lengthScriptPubKey)
+        lengthScriptPubKey_INT = int.from_bytes(lengthScriptPubKey, byteorder="little")
+
+        if lengthScriptPubKey_INT > 0:
+            scriptPubKey = txout[2]
+            if len(scriptPubKey) != lengthScriptPubKey_INT:
+                raise ValueError('scriptPubKey length must equal lengthScriptPubKey.')
+            preimage.extend(scriptPubKey)
+
+    return hashlib.sha256(bytes(preimage)).digest()
+
+SIGHASH_DEFAULT = bytearray.fromhex('00')          # A new hashtype which results in signing over the whole transaction just as for SIGHASH_ALL.
+SIGHASH_ALL = bytearray.fromhex('01')
+SIGHASH_NONE = bytearray.fromhex('02')
+SIGHASH_SINGLE = bytearray.fromhex('03')
+SIGHASH_ANYONECANPAY = bytearray.fromhex('80')     # Once an input signed with SIGHASH_ALL|ANYONECANPAY is added to a transaction outputs cannot be changed or added without that signature being invalidated.
 # Note:
 # SIGHASH_ANYONECANPAY | SIGHASH_ALL = '81'
 # SIGHASH_ANYONECANPAY | SIGHASH_NONE = '82'
 # SIGHASH_ANYONECANPAY | SIGHASH_SINGLE = '83'
+
+SIGHASH_INPUT_MASK = bytearray.fromhex('80')
+SIGHASH_OUTPUT_MASK = 3
 
 def create_signature_message (
     hash_type: bytes,
@@ -162,6 +247,9 @@ def create_signature_message (
     sha_annex: bytes,
     sha_single_output: bytes
 ):
+
+    input_type = int.to_bytes(int.from_bytes(bytes(hash_type), byteorder='little') & int.from_bytes(bytes(SIGHASH_INPUT_MASK), byteorder='little'),1,'little')
+    output_type = SIGHASH_ALL if (hash_type == SIGHASH_DEFAULT) else int.to_bytes((int.from_bytes(bytes(hash_type), byteorder='little') & int.from_bytes(bytes(SIGHASH_OUTPUT_MASK), byteorder='little')),1,'little')
 
 # // Epoch
 # static constexpr uint8_t EPOCH = 0;
@@ -209,7 +297,7 @@ def create_signature_message (
 
 # If the hash_type & 0x80 does not equal SIGHASH_ANYONECANPAY:
 
-    if hash_type.hex() != SIGHASH_ANYONECANPAY:
+    if input_type.hex() != SIGHASH_ANYONECANPAY:
 
     # sha_prevouts (32): the SHA256 of the serialization of all input outpoints.
 
@@ -236,13 +324,14 @@ def create_signature_message (
         preimage.extend(sha_sequences)
 
 # If hash_type & 3 does not equal SIGHASH_NONE or SIGHASH_SINGLE:
-# TODO Conflict to Bitcoin Core?
+#
+# BITCOIN CORE
 # https://github.com/bitcoin/bitcoin/blob/master/src/script/interpreter.cpp#L1548
 #  if (output_type == SIGHASH_ALL) {
 #     ss << cache.m_outputs_single_hash;
 # }
 
-    if hash_type.hex() == SIGHASH_ALL:
+    if output_type.hex() == SIGHASH_ALL:
 
     # sha_outputs (32): the SHA256 of the serialization of all outputs in CTxOut format.
 
@@ -252,6 +341,13 @@ def create_signature_message (
 
 # Data about this input:
 # spend_type (1): equal to (ext_flag * 2) + annex_present, where annex_present is 0 if no annex is present, or 1 otherwise (the original witness stack has two or more witness elements, and the first byte of the last element is 0x50)
+#
+# BITCOIN CORE
+# // Data about the input/prevout being spent
+# assert(execdata.m_annex_init);
+# const bool have_annex = execdata.m_annex_present;
+# const uint8_t spend_type = (ext_flag << 1) + (have_annex ? 1 : 0); // The low bit indicates whether an annex is present.
+# ss << spend_type;
 
     if len(spend_type) != 1:
         raise ValueError('spend_type must be a 1-byte array.')
@@ -259,7 +355,7 @@ def create_signature_message (
 
 # If hash_type & 0x80 equals SIGHASH_ANYONECANPAY:
 
-    if hash_type.hex() == SIGHASH_ANYONECANPAY:
+    if input_type.hex() == SIGHASH_ANYONECANPAY:
 
     # outpoint (36): the COutPoint of this input (32-byte hash + 4-byte little-endian).
 
@@ -287,7 +383,7 @@ def create_signature_message (
 
 # If hash_type & 0x80 does not equal SIGHASH_ANYONECANPAY:
 
-    if hash_type.hex() != SIGHASH_ANYONECANPAY:
+    else:
 
     # input_index (4): index of this input in the transaction input vector. Index of the first input is 0.
 
@@ -308,7 +404,7 @@ def create_signature_message (
 # Data about this output:
 # If hash_type & 3 equals SIGHASH_SINGLE:
 
-    if hash_type.hex() == SIGHASH_SINGLE:
+    if output_type.hex() == SIGHASH_SINGLE:
 
 # sha_single_output (32): the SHA256 of the corresponding output in CTxOut format.
 
@@ -316,6 +412,15 @@ def create_signature_message (
             raise ValueError('sha_single_output must be a 32-byte array.')
         preimage.extend(sha_single_output)
 
+# BITCOIN CORE
+# // Additional data for BIP 342 signatures
+# if (sigversion == SigVersion::TAPSCRIPT) {
+#     assert(execdata.m_tapleaf_hash_init);
+#     ss << execdata.m_tapleaf_hash;
+#     ss << key_version;
+#     assert(execdata.m_codeseparator_pos_init);
+#     ss << execdata.m_codeseparator_pos;
+# }
 
 # Hashes that go into the signature message and the message itself are now computed with a single SHA256 invocation instead of double SHA256. There is no expected security improvement by doubling SHA256 because this only protects against length-extension attacks against SHA256 which are not a concern for signature messages because there is no secret data. Therefore doubling SHA256 is a waste of resources. The message computation now follows a logical order with transaction level data first, then input data and output data. This allows to efficiently cache the transaction part of the message across different inputs using the SHA256 midstate. Additionally, sub-hashes can be skipped when calculating the message (for example `sha_prevouts` if SIGHASH_ANYONECANPAY is set) instead of setting them to zero and then hashing them as in BIP143. Despite that, collisions are made impossible by committing to the length of the data (implicit in hash_type and spend_type) before the variable length data.
 # https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-16
