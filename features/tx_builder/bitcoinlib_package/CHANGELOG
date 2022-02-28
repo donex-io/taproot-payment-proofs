@@ -1,0 +1,207 @@
+RELEASE 0.6.3 - Mempool, Github actions, bugfixes
+=================================================
+* Add mempool.space provider
+* Move unittesting to workflow in Github Actions
+* Add support for bech32m addresses
+* Test regtest and update providers
+* Various bugfixes
+
+RELEASE 0.6.2 - Bugfixes October 2021
+=====================================
+* Fix logging issues
+* Add Bitflyer client
+* Remove Coinfees client
+* Fix various provider and service request issues
+
+RELEASE 0.6.1 - Minor bug fixes
+===============================
+* Issues with bcoin, litcoind, bitcoind provider
+* Use correct Bitcoin symbol
+* Typos and other small bugfixes
+
+RELEASE 0.6.0 - Scripts
+=======================
+* Add Script class to parse, create and validate scripts
+* Add Stack class and methods for script language
+* Use Script class in Transaction, Input, Output, Block and Wallet
+* Remove old service providers and fix provider various issues
+* Use standardised method names: hex, parse, parse_hex, etc in all classes
+
+RELEASE 0.5.3 - Bugfixes March 2021
+===================================
+* Issues with unconfirmed transactions
+* Delete wallet transactions
+* Fix key balance update issues
+* Fix various issues
+* Add unittests
+
+RELEASE 0.5.2 - Privacy & Security
+==================================
+* Locktime updates
+* BIP38 updates
+* Random change outputs
+* Random input / output order
+* SQLCipher support
+* Avoid dust utxos
+
+RELEASE 0.5.1 - New Value class
+===============================
+* Added new Value class to represent cryptocurrency values
+* Accept Value class in Wallet and Transaction methods
+* Fix some service, database and cache issues
+
+RELEASE 0.5.0 - Refactor database and cache
+===========================================
+* Increase cache database efficiency and reduce storage size
+* Refactor wallet and transaction database
+* Remove Python 2 support
+* Remove deprecated methods
+* Shorter class names: Wallet, WalletTransaction, WalletKey
+* Add method to retrieve input values for transactions
+* Fix various bugs in Service, Wallet, Mnemonic and Transaction classes
+
+PLEASE NOTE: It is not possible to update database from version <0.4.x to 0.5.0.
+You need the updatedb.py script to copy masterkeys and recreate wallets and transactions.
+
+RELEASE 0.4.19 - Bug fix and cache updates
+==========================================
+* Fix errors in Blockstream and Litecoinblockexplorer
+* Increase cache efficiency
+
+RELEASE 0.4.17 - Bug fix release
+================================
+* Fix logging, cache and database issues
+* Fix several bitcoind noode issues
+* Fix issues with Block object
+* Fix issues with Chainso, Blocksmurfer, Blockcypher and Blockchair
+* Disable cache when database problems occur
+* Add Quantity class to represent very large/small numbers
+
+RELEASE 0.4.16 - Blocks
+=======================
+* Create Block object to parse, serialize and extract information
+* Add getblock and getblock method to service providers
+* Add caching for blocks
+* Fix various issues with service providers
+* Fix conversion issues, and increase speed by avoiding unnecessary conversions
+* Add Dogecoin
+
+RELEASE 0.4.15 - Integrate Blocksmurfer
+=======================================
+* Add support for new bitcoinlib-based Blocksmurfer provider
+* Fix issues with Service class and service providers
+* Fix various Bcoin issues
+* Fix antique P2PK transactions
+* Improve database and caching performance
+* Fix issues with incorrect balance, number of txs or utoxs in cache
+* Add spending transaction information in transaction outputs
+* Add getblock method
+
+RELEASE 0.4.14 - Refactor logging
+=================================
+* Simplify logging and configuration
+* Use pathlib module instead of os.path
+* Allow to use mysql or postgresql for cache database
+* Fix some issues from service providers
+
+RELEASE 0.4.13 - Add caching
+============================
+* Cache transactions and address info retrieved from Service providers
+* Increase efficiency when updating transactions
+* Fix path issues in Windows
+* Disable Python 3.4 support, add 3.8 tests
+* Fix several transaction update issues
+
+RELEASE 0.4.12 - Documentation and install update
+=================================================
+* Enable database backup
+* Fix documentation build
+* Review all documentation
+* Add Jupyter manual
+* Add various unittests
+* Fix issues with service providers
+* Fix many minor bugs
+
+RELEASE 0.4.11 - Provider update
+================================
+* Add support for bcoin client
+* Add support for mysql and postgresql databases
+* Add blockstream, bitaps and smartbit provider
+* Improve scan and update transaction methods
+* Remove obsolete providers
+* Fix bitcoind and litecoind issues
+* Fix various provider issues
+
+RELEASE 0.4.9, 0.4.10 - Fix install
+===================================
+* Fix pip install on some platforms
+
+RELEASE 0.4.8 - Use coverage, improve testing and fix issues
+============================================================
+* Add many unittests and increase coverage > 90%
+* Update documentation, docstrings
+* Rewrite HDWalletTransaction classes
+* Improve bitcoind Service client
+* Partially remove blockexplorer support and unittests
+* Improve database update scripts, add version numbering
+
+RELEASE 0.4.7 - ECDSA updates and minor fixes
+=============================================
+* Improve and speed up use of ECDSA cryptography methods
+* No private keys in json and dict outputs by default
+* Bugfixes, PEP8 fixes and docstring updates
+
+RELEASE 0.4.6 - Use fastecdsa library
+=====================================
+* Use fastecda library instead of ecdsa
+* Still support ecdsa library as fallback and for Windows
+* Use RFC6979 deterministic signatures (from fastecdsa)
+* Add support and Travis CI tests for Windows OS
+* Add new Signature class to manage and create signatures
+* Fix some private key generation issues and add extra tests
+
+RELEASE 0.4.5 - Rewrite Wallet, Key and Transaction Classes
+===========================================================
+* Add support for accounts in Segwit wallets
+* Add segwit key import
+* Add support for address only wallets
+* Fix and update use of key paths in wallets
+* Use a single method for creating wallets, mark create_multisig() as obsolete
+* Return and use public keys by default
+* Add dunder methods, as_dict() and as_json to main classes
+* Use Address class in other classes
+* Fix issues with key_depths and paths in wallets
+* Update network definitions, add segwit WIFs
+* Rename account_key and account_multisig_key methods to public_master()
+* Performance improvements in encoding
+* Many other code cleanups and bug fixes
+
+RELEASE 0.4.4 - Fix utxo and provider issues, add pyscrypt support
+==================================================================
+* Fix various issues with updating UTXO's
+* Add pyscrypt support thanks to @x-falcon
+* Fix issues with BlockExplorer and Blockr
+* Allow to sign tx with HDKey
+* Allow to change wallet key names
+
+RELEASE 0.4.3 - More Segwit fixes
+=================================
+* Fix various segwit issues, add unittests and update docstrings
+
+RELEASE 0.4.2 - Segwit update
+=============================
+* Fix issues with Blockchair, BlockExplorer and CryptoID provider
+* Calculate vsize, virtual size for segwit transactions
+* Add support for SegWit to CLI wallet
+* Allow use of user defined key paths
+* Support and use BIP45, BIP48, BIP49 and BIP84 key paths
+* Allow to import ypub/yprv/zpub/zprv keys
+* Fixed fee and transaction size estimation issues
+* Fixed litecoind issues thanks to @slush0
+
+RELEASE 0.4.0 - Segwit release
+==============================
+* Added segwit support
+* Added support for Python 3.7
+* Add support for Blockchair provider
+* Add CLTV and CSV timelock support

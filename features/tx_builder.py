@@ -1,4 +1,6 @@
 import hashlib
+from reference_implementations.schnorr_signatures.reference import *
+
 
 def build_serialized_signed_transaction(
     nVersion: bytes,
@@ -19,10 +21,12 @@ def build_serialized_signed_transaction(
     serialized_signed_transaction += nVersion.hex()
     nVersion_INT = int.from_bytes(nVersion, byteorder="little")
 
+    # TODO is marker included in TXID?
     if len(marker) != 1:
         raise ValueError('marker must be a 1-byte array.')
     serialized_signed_transaction += marker.hex()
 
+    # TODO is flag included in TXID?
     if len(flag) != 1:
         raise ValueError('flag must be a 1-byte array.')
     serialized_signed_transaction += flag.hex()
@@ -96,7 +100,7 @@ def build_serialized_signed_transaction(
     # Witness data not included in TXID
     txid_preimage = serialized_signed_transaction
     
-    if nVersion_INT == 1:   # TODO If tx version == 1, witness data is present. Is that statement true?
+    if nVersion_INT >= 1:   # TODO If tx version == 1, witness data is present. Is that statement true?
         if len(witness_data) != count_txin_INT:
             raise ValueError('witness_data length must equal count_txin.')
         for witness in witness_data:
@@ -140,7 +144,10 @@ def build_serialized_signed_transaction(
 
     txid = dSHA256(bytes.fromhex(txid_preimage)[::-1]).hex()
 
-    return serialized_signed_transaction, txid
+    return serialized_signed_transaction, txid, txid_preimage
+
+def tx_vsize(serialized_signed_transaction: bytes, txid_preimage: bytes):
+    return len(txid_preimage) * 4  + (len(serialized_signed_transaction) - len(txid_preimage)) # TODO marker and flag
 
 
 def sha_txins (txins: list):
@@ -149,6 +156,7 @@ def sha_txins (txins: list):
     preimage_sequences = bytearray.fromhex("")
     for txin in txins:
 
+        # Has to be little endian of tx hash
         hash = txin[0]
         if len(hash) != 32:
             raise ValueError('hash must be a 32-byte array.')
@@ -163,24 +171,25 @@ def sha_txins (txins: list):
         if len(lengthScriptSig) != 1:
             raise ValueError('lengthScriptSig must be a 1-byte array.')
         lengthScriptSig_INT = int.from_bytes(lengthScriptSig, byteorder="little")
+        preimage_scriptpubkeys.extend(lengthScriptSig)
         # TODO: Preimage of length of script required?
 
         if lengthScriptSig_INT > 0:
             scriptSig = txin[3]
             if len(scriptSig) != lengthScriptSig_INT:
                 raise ValueError('scriptSig length must equal lengthScriptSig.')
-            preimage_scriptpubkeys.extend(output)
+            preimage_scriptpubkeys.extend(scriptSig)
 
         nSequence = txin[4]
         if len(nSequence) != 4:
             raise ValueError('nSequence must be a 4-byte array.')
-        preimage_sequences.extend(output)
+        preimage_sequences.extend(nSequence)
 
     sha_prevouts = hashlib.sha256(bytes(preimage_prevouts)).digest()
     sha_scriptpubkeys = hashlib.sha256(bytes(preimage_scriptpubkeys)).digest()
     sha_sequences = hashlib.sha256(bytes(preimage_sequences)).digest()
     
-    return sha_prevouts, sha_scriptpubkeys, sha_sequences
+    return sha_prevouts, sha_scriptpubkeys, sha_sequences, preimage_prevouts, preimage_scriptpubkeys, preimage_sequences
 
 def sha_amounts (amounts: list):
     preimage = bytearray.fromhex("")
@@ -188,7 +197,7 @@ def sha_amounts (amounts: list):
         if len(amount) != 8:
             raise ValueError('amount must be a 8-byte array.')
         preimage.extend(amount)
-    return hashlib.sha256(bytes(preimage)).digest()
+    return hashlib.sha256(bytes(preimage)).digest(), preimage
 
 def sha_outputs (txouts: list):
     preimage = bytearray.fromhex("")
@@ -213,7 +222,7 @@ def sha_outputs (txouts: list):
                 raise ValueError('scriptPubKey length must equal lengthScriptPubKey.')
             preimage.extend(scriptPubKey)
 
-    return hashlib.sha256(bytes(preimage)).digest()
+    return hashlib.sha256(bytes(preimage)).digest(), preimage
 
 SIGHASH_DEFAULT = bytearray.fromhex('00')          # A new hashtype which results in signing over the whole transaction just as for SIGHASH_ALL.
 SIGHASH_ALL = bytearray.fromhex('01')
@@ -297,7 +306,7 @@ def create_signature_message (
 
 # If the hash_type & 0x80 does not equal SIGHASH_ANYONECANPAY:
 
-    if input_type.hex() != SIGHASH_ANYONECANPAY:
+    if input_type.hex() != SIGHASH_ANYONECANPAY.hex():
 
     # sha_prevouts (32): the SHA256 of the serialization of all input outpoints.
 
@@ -331,7 +340,7 @@ def create_signature_message (
 #     ss << cache.m_outputs_single_hash;
 # }
 
-    if output_type.hex() == SIGHASH_ALL:
+    if output_type.hex() == SIGHASH_ALL.hex():
 
     # sha_outputs (32): the SHA256 of the serialization of all outputs in CTxOut format.
 
@@ -355,7 +364,7 @@ def create_signature_message (
 
 # If hash_type & 0x80 equals SIGHASH_ANYONECANPAY:
 
-    if input_type.hex() == SIGHASH_ANYONECANPAY:
+    if input_type.hex() == SIGHASH_ANYONECANPAY.hex():
 
     # outpoint (36): the COutPoint of this input (32-byte hash + 4-byte little-endian).
 
@@ -404,7 +413,7 @@ def create_signature_message (
 # Data about this output:
 # If hash_type & 3 equals SIGHASH_SINGLE:
 
-    if output_type.hex() == SIGHASH_SINGLE:
+    if output_type.hex() == SIGHASH_SINGLE.hex():
 
 # sha_single_output (32): the SHA256 of the corresponding output in CTxOut format.
 
@@ -425,6 +434,7 @@ def create_signature_message (
 # Hashes that go into the signature message and the message itself are now computed with a single SHA256 invocation instead of double SHA256. There is no expected security improvement by doubling SHA256 because this only protects against length-extension attacks against SHA256 which are not a concern for signature messages because there is no secret data. Therefore doubling SHA256 is a waste of resources. The message computation now follows a logical order with transaction level data first, then input data and output data. This allows to efficiently cache the transaction part of the message across different inputs using the SHA256 midstate. Additionally, sub-hashes can be skipped when calculating the message (for example `sha_prevouts` if SIGHASH_ANYONECANPAY is set) instead of setting them to zero and then hashing them as in BIP143. Despite that, collisions are made impossible by committing to the length of the data (implicit in hash_type and spend_type) before the variable length data.
 # https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-16
 
-    signature_message = hashlib.sha256(bytes(preimage)).digest()
+    signature_message = tagged_hash("TapSighash", preimage) 
 
-    return signature_message
+    return signature_message, preimage
+
