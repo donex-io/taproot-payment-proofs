@@ -237,7 +237,9 @@ SIGHASH_ANYONECANPAY = bytearray.fromhex('80')     # Once an input signed with S
 SIGHASH_INPUT_MASK = bytearray.fromhex('80')
 SIGHASH_OUTPUT_MASK = 3
 
-def create_signature_message (
+# This function is only valid for taproot transaction 
+# without the tapscript path!
+def create_signature_message_for_taproot_tx (
     hash_type: bytes,
     nVersion: bytes,
     nLockTime: bytes,
@@ -357,6 +359,12 @@ def create_signature_message (
 # const bool have_annex = execdata.m_annex_present;
 # const uint8_t spend_type = (ext_flag << 1) + (have_annex ? 1 : 0); // The low bit indicates whether an annex is present.
 # ss << spend_type;
+
+    spend_type_int = int.from_bytes(bytes(spend_type), byteorder='little')
+    if have_annex is not None:
+        spend_type_int |= 1
+    if (False): #'scriptpath' has to be specified
+        spend_type |= 2
 
     if len(spend_type) != 1:
         raise ValueError('spend_type must be a 1-byte array.')
