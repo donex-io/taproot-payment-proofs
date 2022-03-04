@@ -117,7 +117,7 @@ def build_serialized_signed_transaction(
 
                 if len(witness)-1 != count_witness_elements_INT:
                     raise ValueError('witness_elements length must equal count_witness_elements.')
-                for i in range(1,count_witness_elements_INT):
+                for i in range(1,count_witness_elements_INT+1):
                     witness_element = witness[i]
                     if len(witness_element) != 2:
                         raise ValueError('witness_element must contain 2 elements.')

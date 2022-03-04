@@ -137,15 +137,16 @@ TEST_PRIVATE_KEY = bytes_from_int(0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67
 TEST_AUX_RAND = bytes_from_int(0xC87AA53824B4D7AE2EB035A2B5BBBCCC080E76CDC6D1692C4B0B62D798E6D906)
 test_some_data = int.to_bytes(123456789, 8, 'little')
 # Signing one TX input:
-build_witness = [schnorr_sign_with_data(signature_message, TEST_PRIVATE_KEY, TEST_AUX_RAND, test_some_data)]
-build_witness_data = [[int.to_bytes(len(build_witness),1,'little'), build_witness]]
+build_witness = schnorr_sign_with_data(signature_message, TEST_PRIVATE_KEY, TEST_AUX_RAND, test_some_data)
+build_witness_data = [[int.to_bytes(1,1,'little'),[int.to_bytes(len(build_witness),1,'little'), build_witness]]]
+# NOTE WITNESS DATA IS NOT CORRECT FORMAT
 
 serialized_signed_transaction, txid, txid_preimage = build_serialized_signed_transaction( 
     count_txin = build_count_txins,
     txins = build_txins,
     count_txout = build_count_txouts,
     txouts = build_txouts,
-    witness_data = build_witness_data
+    witness_data = build_witness_data   
     )
 
 print(serialized_signed_transaction)
