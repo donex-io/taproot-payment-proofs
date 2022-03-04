@@ -18,7 +18,7 @@ bech32m_address = create_bech32m_taproot_address(public_key, "testnet")
 
 print('\n')
 
-write_address_and_key_to_file(bech32m_address, private_key)
+write_address_and_key_to_file(bech32m_address, private_key, public_key)
 
 print('\n')
 print(f'random_secret                =   {random_secret.hex()}', '\n')
