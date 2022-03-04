@@ -36,4 +36,3 @@ print(json.dumps(signed_invoice, indent=4))
 write_invoice_to_file(signed_invoice)
 
 print(f'Signature verification with respect to public key {public_key} yields: {verify_invoice_signature(signed_invoice, bytearray.fromhex(public_key))}')
-
