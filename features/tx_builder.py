@@ -3,15 +3,15 @@ from reference_implementations.schnorr_signatures.reference import *
 
 
 def build_serialized_signed_transaction(
-    nVersion: bytes,
-    marker: bytes,
-    flag: bytes,
     count_txin: bytes,
     txins: list,
     count_txout: bytes,
     txouts: list,
     witness_data: list,
-    nLockTime: bytes
+    nVersion: bytes = int.to_bytes(1,4,'little'),
+    marker: bytes = int.to_bytes(0,1,'little'), # Double check!
+    flag: bytes = int.to_bytes(1,1,'little'), # Double check!
+    nLockTime: bytes = int.to_bytes(709631,4,'little') # Double check!
 ):
 
     serialized_signed_transaction = ""
@@ -167,18 +167,17 @@ def sha_txins (txins: list):
             raise ValueError('output must be a 4-byte array.')
         preimage_prevouts.extend(output)
 
-        lengthScriptSig = txin[2]
-        if len(lengthScriptSig) != 1:
+        lengthScriptPubKey = txin[2]
+        if len(lengthScriptPubKey) != 1:
             raise ValueError('lengthScriptSig must be a 1-byte array.')
-        lengthScriptSig_INT = int.from_bytes(lengthScriptSig, byteorder="little")
-        preimage_scriptpubkeys.extend(lengthScriptSig)
-        # TODO: Preimage of length of script required?
+        lengthScriptPubKey_INT = int.from_bytes(lengthScriptPubKey, byteorder="little")
+        preimage_scriptpubkeys.extend(lengthScriptPubKey)
 
-        if lengthScriptSig_INT > 0:
-            scriptSig = txin[3]
-            if len(scriptSig) != lengthScriptSig_INT:
+        if lengthScriptPubKey_INT > 0:
+            scriptPubKey = txin[3]
+            if len(scriptPubKey) != lengthScriptPubKey_INT:
                 raise ValueError('scriptSig length must equal lengthScriptSig.')
-            preimage_scriptpubkeys.extend(scriptSig)
+            preimage_scriptpubkeys.extend(scriptPubKey)
 
         nSequence = txin[4]
         if len(nSequence) != 4:
