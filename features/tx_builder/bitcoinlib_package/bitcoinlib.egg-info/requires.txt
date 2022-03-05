@@ -1,0 +1,16 @@
+SQLAlchemy==1.4.28
+pyaes==1.6.1
+requests==2.26.0
+scrypt==0.8.19
+
+[:platform_system != "Windows"]
+fastecdsa==2.2.3
+
+[:platform_system == "Windows"]
+ecdsa==0.16
+
+[:python_version < "3.8"]
+numpy==1.19.5
+
+[:python_version >= "3.8"]
+numpy==1.21.4
