@@ -53,6 +53,7 @@ for txin in tx_parsed.as_dict()["inputs"]:
     scriptPubKey = bytearray.fromhex(prev_tx_parsed.as_dict()["outputs"][txin["output_n"]]["script"])
     #scriptPubKey = bytearray.fromhex("5120339ce7e165e67d93adb3fef88a6d4beed33f01fa876f05a225242b82a631abc0")     # TODO Check if this script is correct!
     lengthScriptPubKey = len(scriptPubKey)
+    print("scriptPubKey",scriptPubKey.hex())
     prevouts[-1].append(int.to_bytes(lengthScriptPubKey,1,'little'))
     prevouts[-1].append(bytes(scriptPubKey))
     prevouts[-1].append(int.to_bytes(txin["sequence"],4,'little'))
