@@ -1,8 +1,18 @@
 # ----------------------------------------
-## Create keys
+## Imports
 # ----------------------------------------
 
-from reference_implementations.schnorr_signatures.reference import *
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from features.reference_implementations.schnorr_signatures.reference import *
+
+# ----------------------------------------
+## Create keys
+# ----------------------------------------
 
 # Create random 256-bit secret that is later turned into a private key
 def create_random_secret() -> bytes:

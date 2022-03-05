@@ -1,5 +1,17 @@
+
+# ----------------------------------------
+## Imports
+# ----------------------------------------
+
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from features.reference_implementations.schnorr_signatures.reference import *
+
 import hashlib
-from reference_implementations.schnorr_signatures.reference import *
 
 
 def build_serialized_signed_transaction(

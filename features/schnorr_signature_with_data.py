@@ -1,4 +1,14 @@
-from reference_implementations.schnorr_signatures.reference import *
+# ----------------------------------------
+## Imports
+# ----------------------------------------
+
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from features.reference_implementations.schnorr_signatures.reference import *
 
 # NOTE
     # Calculate a deterministic 'j' which is acts as an one-time signing key per message.

@@ -1,4 +1,18 @@
 # ----------------------------------------
+## Imports
+# ----------------------------------------
+
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from features.reference_implementations.schnorr_signatures.reference import *
+
+import hashlib
+
+# ----------------------------------------
 ## Handle invoices
 # ----------------------------------------
 
@@ -10,9 +24,6 @@ def create_unsigned_invoice(invoice_number, recipient_address, amount):
         "amount" : amount, # amount in Satoshis
     }
     return unsigned_invoice_data
-
-from reference_implementations.schnorr_signatures.reference import *
-import hashlib
 
 def create_invoice_signature(unsigned_invoice, priv_key):
     unsigned_invoice_bytes = json.dumps(unsigned_invoice).encode('utf-8')
@@ -48,3 +59,6 @@ def write_invoice_to_file(signed_invoice):
     with open(abs_file_path, 'w', encoding='utf-8') as f:
         json.dump(signed_invoice, f, ensure_ascii=False, indent=4)
     print('Writing invoice to json file was successful.')
+
+def read_invoice_from_file(invoice_file):   
+    return json.load(invoice_file, f, ensure_ascii=False, indent=4)
