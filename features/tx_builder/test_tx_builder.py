@@ -12,8 +12,8 @@ sys.path.insert(1, SCRIPT_DIR +'/ecdsa-0.10')
 import bitcoinlib
 
 PARENT_DIR = os.path.dirname(SCRIPT_DIR)
-sys.path.insert(1, PARENT_DIR +'/reference_implementations/schnorr_signatures')
-from reference import *
+# sys.path.insert(1, PARENT_DIR +'/reference_implementations/schnorr_signatures')
+# from reference import *
 
 sys.path.insert(1, PARENT_DIR)
 from schnorr_signature_with_data import *

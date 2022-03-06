@@ -3,7 +3,7 @@
 # ----------------------------------------
 
 def start_scanutxos(bt_cli_object, addr):
-        print(f'Start scanning UTXOs for address {addr}...this can take up to a minute...', '\n')
+        print(f'Start scanning UTXOs for address {addr} ... this might take a while ...', '\n')
         scan_objects = [f"addr({addr})"]
         scan_result = bt_cli_object.scantxoutset('start', scan_objects)
         return scan_result

@@ -61,4 +61,5 @@ def write_invoice_to_file(signed_invoice):
     print('Writing invoice to json file was successful.')
 
 def read_invoice_from_file(invoice_file):   
-    return json.load(invoice_file, f, ensure_ascii=False, indent=4)
+    with open(invoice_file, 'w', encoding='utf-8') as f:
+        return json.load(f)
