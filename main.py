@@ -153,3 +153,6 @@ signature_message, preimage = create_signature_message_for_taproot_tx(
     sha_annex=None,
     sha_single_output=None # TODO Unclear
 )
+
+# Final step: broadcast TX to blockchain
+# bt_cli.sendrawtransaction(signed_raw_hex_TX)
