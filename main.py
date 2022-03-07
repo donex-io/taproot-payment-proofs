@@ -124,7 +124,7 @@ test_sha_amounts, preimage = sha_amounts(prevouts_amounts)
 # prepare spending and change output for hashing 
 outputs = []
 
-guessed_fee = 500
+guessed_fee = 1500
 
 # 1st output: amount to send
 outputs.append(txout_byte_list (amount_to_send, bytearray.fromhex('5120' + recipient_public_key)))
