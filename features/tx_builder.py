@@ -54,15 +54,15 @@ def build_serialized_signed_transaction(
         if len(txin) != 5:
             raise ValueError('txin must contain 5 elements.')
 
-        hash = txin[0]
-        if len(hash) != 32:
-            raise ValueError('hash must be a 32-byte array.')
-        serialized_signed_transaction += hash.hex()
+        txid = txin[0]
+        if len(txid) != 32:
+            raise ValueError('txid must be a 32-byte array.')
+        serialized_signed_transaction += txid.hex()
 
-        output = txin[1]
-        if len(output) != 4:
-            raise ValueError('output must be a 4-byte array.')
-        serialized_signed_transaction += output.hex()
+        index = txin[1]
+        if len(index) != 4:
+            raise ValueError('index must be a 4-byte array.')
+        serialized_signed_transaction += index.hex()
 
         lengthScriptSig = txin[2]
         if len(lengthScriptSig) != 1:
@@ -162,45 +162,68 @@ def tx_vsize(serialized_signed_transaction: bytes, txid_preimage: bytes):
     return len(txid_preimage) * 4  + (len(serialized_signed_transaction) - len(txid_preimage)) # TODO marker and flag
 
 
-def sha_txins (txins: list):
-    preimage_prevouts = bytearray.fromhex("")
+def output_input_bytes_list (
+    txid: bytes,
+    index: int,
+    script: bytes,
+    sequence: int
+):
+    output_input = []
+    if len(txid) != 32:
+            raise ValueError('txid must be a 32-byte array.')
+    txid.reverse()
+    output_input.append(bytes(txid))
+    if index > 4294967295:
+        raise ValueError('index must be a 4-byte array.')
+    output_input.append(int.to_bytes(index, 4, 'little'))
+    length_script = len(script)
+    output_input.append(int.to_bytes(length_script, 1, 'little'))
+    output_input.append(bytes(script))
+    if sequence > 4294967295:
+            raise ValueError('nSequence must be a 4-byte array.')
+    output_input.append(int.to_bytes(sequence, 4, 'little'))
+    return output_input
+
+
+def sha_prevoutputs (prevoutputs: list):
+    preimage_prevoutpoints = bytearray.fromhex("")
     preimage_scriptpubkeys = bytearray.fromhex("")
     preimage_sequences = bytearray.fromhex("")
-    for txin in txins:
+    for prevoutput in prevoutputs:
 
         # Has to be little endian of tx hash
-        hash = txin[0]
-        if len(hash) != 32:
+        txid = prevoutput[0]
+        if len(txid) != 32:
             raise ValueError('hash must be a 32-byte array.')
-        preimage_prevouts.extend(hash)
+        preimage_prevoutpoints.extend(txid)
 
-        output = txin[1]
-        if len(output) != 4:
-            raise ValueError('output must be a 4-byte array.')
-        preimage_prevouts.extend(output)
+        index = prevoutput[1]
+        if len(index) != 4:
+            raise ValueError('index must be a 4-byte array.')
+        preimage_prevoutpoints.extend(index)
 
-        lengthScriptPubKey = txin[2]
+        lengthScriptPubKey = prevoutput[2]
         if len(lengthScriptPubKey) != 1:
             raise ValueError('lengthScriptSig must be a 1-byte array.')
         lengthScriptPubKey_INT = int.from_bytes(lengthScriptPubKey, byteorder="little")
         preimage_scriptpubkeys.extend(lengthScriptPubKey)
 
         if lengthScriptPubKey_INT > 0:
-            scriptPubKey = txin[3]
+            scriptPubKey = prevoutput[3]
             if len(scriptPubKey) != lengthScriptPubKey_INT:
                 raise ValueError('scriptSig length must equal lengthScriptSig.')
             preimage_scriptpubkeys.extend(scriptPubKey)
 
-        nSequence = txin[4]
+        nSequence = prevoutput[4]
         if len(nSequence) != 4:
             raise ValueError('nSequence must be a 4-byte array.')
         preimage_sequences.extend(nSequence)
 
-    sha_prevouts = hashlib.sha256(bytes(preimage_prevouts)).digest()
+    sha_prevoutpoints = hashlib.sha256(bytes(preimage_prevoutpoints)).digest()
     sha_scriptpubkeys = hashlib.sha256(bytes(preimage_scriptpubkeys)).digest()
     sha_sequences = hashlib.sha256(bytes(preimage_sequences)).digest()
     
-    return sha_prevouts, sha_scriptpubkeys, sha_sequences, preimage_prevouts, preimage_scriptpubkeys, preimage_sequences
+    return sha_prevoutpoints, sha_scriptpubkeys, sha_sequences, preimage_prevoutpoints, preimage_scriptpubkeys, preimage_sequences
 
 def sha_amounts (amounts: list):
     preimage = bytearray.fromhex("")
@@ -209,6 +232,21 @@ def sha_amounts (amounts: list):
             raise ValueError('amount must be a 8-byte array.')
         preimage.extend(amount)
     return hashlib.sha256(bytes(preimage)).digest(), preimage
+
+
+def txout_byte_list (
+    value: int,
+    scriptPubKey: bytes
+):
+    txout = []
+    if value > 18446744073709551615:
+        raise ValueError('value must be a 8-byte array.')
+    txout.append(int.to_bytes(value,8,'little'))
+    lengthScriptPubKey = len(scriptPubKey)
+    txout.append(int.to_bytes(lengthScriptPubKey,1,'little'))
+    txout.append(bytes(scriptPubKey))
+    return txout
+
 
 def sha_outputs (txouts: list):
     preimage = bytearray.fromhex("")
@@ -251,23 +289,23 @@ SIGHASH_OUTPUT_MASK = 3
 # This function is only valid for taproot transaction 
 # without the tapscript path!
 def create_signature_message_for_taproot_tx (
-    hash_type: bytes,
-    nVersion: bytes,
-    nLockTime: bytes,
-    sha_prevouts: bytes,
+    sha_prevoutpoints: bytes,
     sha_amounts: bytes,
     sha_scriptpubkeys: bytes,
     sha_sequences: bytes,
     sha_outputs: bytes,
-    spend_type: bytes,
-    outpoint: bytes,
-    amount: bytes,
-    scriptPubKey: bytes,
-    nSequence: bytes,
-    input_index: bytes,
-    have_annex: bool,
-    sha_annex: bytes,
-    sha_single_output: bytes
+    input_index: bytes, 
+    hash_type: bytes=int.to_bytes(0,1,'little'),
+    nVersion: bytes=int.to_bytes(1,4,'little'),
+    nLockTime: bytes=int.to_bytes(709631,4,'little'), # TODO
+    spend_type: bytes=int.to_bytes(0,1,'little'),
+    outpoint: bytes=None,
+    amount: bytes=None,
+    scriptPubKey: bytes=None,
+    nSequence: bytes=None,
+    have_annex: bytes=False,
+    sha_annex: bytes=None,
+    sha_single_output: bytes=None
 ):
 
     input_type = int.to_bytes(int.from_bytes(bytes(hash_type), byteorder='little') & int.from_bytes(bytes(SIGHASH_INPUT_MASK), byteorder='little'),1,'little')
@@ -321,11 +359,11 @@ def create_signature_message_for_taproot_tx (
 
     if input_type.hex() != SIGHASH_ANYONECANPAY.hex():
 
-    # sha_prevouts (32): the SHA256 of the serialization of all input outpoints.
+    # sha_prevoutpoints (32): the SHA256 of the serialization of all input outpoints.
 
-        if len(sha_prevouts) != 32:
+        if len(sha_prevoutpoints) != 32:
             raise ValueError('sha_prevouts must be a 32-byte array.')
-        preimage.extend(sha_prevouts)
+        preimage.extend(sha_prevoutpoints)
 
     # sha_amounts (32): the SHA256 of the serialization of all spent output amounts.
 

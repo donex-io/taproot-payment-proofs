@@ -43,21 +43,15 @@ prev_tx_parsed = bitcoinlib.transactions.Transaction.parse(test_prev_tx)
 # NOTE: This might be done differently:
 prevouts = []
 for txin in tx_parsed.as_dict()["inputs"]:
-    prevouts.append([])
-    txin_id = bytearray.fromhex(txin["prev_txid"])
-    txin_id.reverse() # little endian encoded tx hash needed
-    prevouts[-1].append(bytes(txin_id))
-    prevouts[-1].append(int.to_bytes(txin["output_n"],4,'little'))
-    # FROM PREVIOUS TX:
-    # NOTE: Here, a method could be used, to get the data of this specific output from the blockchain:
-    scriptPubKey = bytearray.fromhex(prev_tx_parsed.as_dict()["outputs"][txin["output_n"]]["script"])
-    #scriptPubKey = bytearray.fromhex("5120339ce7e165e67d93adb3fef88a6d4beed33f01fa876f05a225242b82a631abc0")     # TODO Check if this script is correct!
-    lengthScriptPubKey = len(scriptPubKey)
-    prevouts[-1].append(int.to_bytes(lengthScriptPubKey,1,'little'))
-    prevouts[-1].append(bytes(scriptPubKey))
-    prevouts[-1].append(int.to_bytes(txin["sequence"],4,'little'))
+    prevouts_i = output_input_bytes_list(
+        bytearray.fromhex(txin["prev_txid"]), 
+        txin["output_n"],
+        bytearray.fromhex(prev_tx_parsed.as_dict()["outputs"][txin["output_n"]]["script"]),
+        txin["sequence"]
+    )
+    prevouts.append(prevouts_i)
 
-test_sha_prevouts, test_sha_scriptpubkeys, test_sha_sequences, preimage_prevouts, preimage_scriptpubkeys, preimage_sequences = sha_txins(prevouts)
+test_sha_prevouts, test_sha_scriptpubkeys, test_sha_sequences, preimage_prevouts, preimage_scriptpubkeys, preimage_sequences = sha_prevoutputs(prevouts)
 
 # From PREVIOUS TX from blockchain explorer
 # --
@@ -69,32 +63,20 @@ test_sha_amounts, preimage = sha_amounts(prevouts_amounts)
 
 outputs = []
 for txout in tx_parsed.as_dict()["outputs"]:
-    outputs.append([])
-    outputs[-1].append(int.to_bytes(txout["value"],8,'little'))
-    scriptPubKey = bytearray.fromhex(txout["script"])     
-    lengthScriptPubKey = len(scriptPubKey)
-    outputs[-1].append(int.to_bytes(lengthScriptPubKey,1,'little'))
-    outputs[-1].append(bytes(scriptPubKey))
+    outputs_i = txout_byte_list (
+        txout["value"],
+        bytearray.fromhex(txout["script"])  ,
+    )
+    outputs.append(outputs_i)
 test_sha_outputs, test_sha_outputs_preimage = sha_outputs(outputs)
 
 signature_message, preimage = create_signature_message_for_taproot_tx(
-    hash_type=int.to_bytes(0,1,'little'), # If signature 64 byte, this is 0x00, otherwise it is given in signature byte 65
-    nVersion=int.to_bytes(tx_parsed.as_dict()["version"],4,'little'),
-    nLockTime=int.to_bytes(tx_parsed.as_dict()["locktime"],4,'little'),
-    sha_prevouts=test_sha_prevouts,
+    sha_prevoutpoints=test_sha_prevouts,
     sha_amounts=test_sha_amounts,
     sha_scriptpubkeys=test_sha_scriptpubkeys,
     sha_sequences=test_sha_sequences,
     sha_outputs=test_sha_outputs,
-    spend_type=int.to_bytes(0,1,'little'), # TODO Unclear if this is the correct flag
-    outpoint=None,
-    amount=None,
-    scriptPubKey=None,
-    nSequence=None,
-    input_index=int.to_bytes(0,4,'little'), 
-    have_annex=False, # TODO Unclear
-    sha_annex=None,
-    sha_single_output=None # TODO Unclear
+    input_index=int.to_bytes(0,4,'little')
 )
 
 # Check if the provided signature of the spender is correct:
@@ -121,15 +103,7 @@ for txin in tx_parsed.as_dict()["inputs"]:
     build_txins[-1].append(int.to_bytes(txin["sequence"],4,'little'))
 build_count_txins = int.to_bytes(len(build_txins),1,'little')
 
-build_txouts = []
-for txout in tx_parsed.as_dict()["outputs"]:
-    build_txouts.append([])
-    build_txouts[-1].append(int.to_bytes(txout["value"],8,'little'))
-    scriptPubKey = bytearray.fromhex(txout["script"])
-    lengthScriptPubKey = len(scriptPubKey)
-    build_txouts[-1].append(int.to_bytes(lengthScriptPubKey,1,'little'))
-    build_txouts[-1].append(bytes(scriptPubKey))
-build_count_txouts = int.to_bytes(len(build_txouts),1,'little')
+build_count_txouts = int.to_bytes(len(outputs),1,'little')
 
 # USE THE CORRESPONDING PRIVATE KEY FOR PUBLIC KEY
 # The private key and aux rand for this example is NOT known. Hence, a random private key and aux rand value is used here:
@@ -145,7 +119,7 @@ serialized_signed_transaction, txid, txid_preimage = build_serialized_signed_tra
     count_txin = build_count_txins,
     txins = build_txins,
     count_txout = build_count_txouts,
-    txouts = build_txouts,
+    txouts = outputs,
     witness_data = build_witness_data   
     )
 
