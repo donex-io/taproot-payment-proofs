@@ -29,7 +29,7 @@ from features.tx_builder import *
 # -------------------------------
 
 # load bitcoin-rpc library, https://github.com/jgarzik/python-bitcoinrpc (sudo pip install python-bitcoinrpc)
-from features.bitcoin_core_rpc.python_bitcoinrpc.bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
+from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 
 # setup JSON-rpc connection with bitcoind, credentials are set in bitcoin.conf
 bt_cli = AuthServiceProxy("http://%s:%s@127.0.0.1:18332"%('admin', 'admin'), timeout=120)
@@ -51,7 +51,6 @@ def read_keys_and_addresses(row_to_read):
     script_dir = os.path.dirname(__file__)
     rel_path = "features/create_keys_and_addresses/keys_and_addresses.csv"
     abs_file_path = os.path.join(script_dir, rel_path)
-    print(abs_file_path)
     with open(abs_file_path) as csvfile:
         csv_reader = csv.reader(csvfile, delimiter=' ')
         rows = [r for r in csv_reader]
@@ -66,31 +65,33 @@ def read_keys_and_addresses(row_to_read):
 # Main script
 # -------------------------------
 
-invoice_data = locate_and_read_invoice(5511)
-sending_address, sending_private_key, sending_public_key = read_keys_and_addresses(10)
-recipient_address, recipient_private_key, recipient_public_key = read_keys_and_addresses(11)
+sending_address, sending_private_key, sending_public_key = read_keys_and_addresses(14)
+recipient_address, recipient_private_key, recipient_public_key = read_keys_and_addresses(15)
 
-# old function: pay_invoice(5511, recipient_public_key, sending_address, recipient_public_key, sending_public_key)
+print('sending address: ', sending_address)
+print('recipient address: ', recipient_address)
 
 # read from invoice
 invoice_dict = locate_and_read_invoice(5511) # read invoice number 5511
-amount_to_send = invoice_dict['amount']
+amount_to_send = 5000 # invoice_dict['amount']
 
 # if signature in invoice is valid, proceed with payment
-if verify_invoice_signature(invoice_dict, bytearray.fromhex(recipient_public_key)):
-    print('Invoice signature matches the provided public key. Continue to pay invoice...')
-    
-else: 
-    raise ValueError('Invoice signature does not match the provided public key. Cannot pay invoice.')
+# if verify_invoice_signature(invoice_dict, bytearray.fromhex(recipient_public_key)):
+#     print('Invoice signature matches the provided public key. Continue to pay invoice...')
+# else: 
+#     raise ValueError('Invoice signature does not match the provided public key. Cannot pay invoice.')
 
 # scan the utxo set of the sending address and return matching entry array
-#utxo_scan_result = start_scanutxos(bt_cli, sending_address)
-#f = open('store.pckl', 'wb')
-#pickle.dump(utxo_scan_result, f)
-#f.close()
-f = open('store.pckl', 'rb')
-utxo_scan_result = pickle.load(f)
-f.close()
+utxo_scan_result = start_scanutxos(bt_cli, sending_address)
+
+print(utxo_scan_result, '\n')
+
+# f = open('store.pckl', 'wb')
+# pickle.dump(utxo_scan_result, f)
+# f.close()
+# f = open('store.pckl', 'rb')
+# utxo_scan_result = pickle.load(f)
+# f.close()
 
 [utxo_counter, utxo_sum] = choose_matching_UTXOs(amount_to_send, 0, utxo_scan_result)
 matching_utxo_array = return_matching_UTXOs(utxo_counter, utxo_scan_result)
@@ -123,11 +124,13 @@ test_sha_amounts, preimage = sha_amounts(prevouts_amounts)
 # prepare spending and change output for hashing 
 outputs = []
 
+guessed_fee = 500
+
 # 1st output: amount to send
-outputs.append(txout_byte_list (amount_to_send,bytearray.fromhex('5120' + recipient_public_key)))
+outputs.append(txout_byte_list (amount_to_send, bytearray.fromhex('5120' + recipient_public_key)))
 
 # # 2nd output: change to send back
-outputs.append(txout_byte_list (utxo_sum - amount_to_send,bytearray.fromhex('5120' + recipient_public_key)))
+outputs.append(txout_byte_list (utxo_sum - amount_to_send - guessed_fee, bytearray.fromhex('5120' + sending_public_key)))
 
 # hashing of output data
 test_sha_outputs, test_sha_outputs_preimage = sha_outputs(outputs)
@@ -154,7 +157,8 @@ serialized_signed_transaction, txid, txid_preimage = build_serialized_signed_tra
     witness_data = witness_data   
     )
 
-print("serialized_signed_transaction",serialized_signed_transaction)
+print("serialized_signed_transaction: ", serialized_signed_transaction, '\n')
 
 # Final step: broadcast TX to blockchain
-# bt_cli.sendrawtransaction(signed_raw_hex_TX)
+bt_cli.sendrawtransaction(serialized_signed_transaction)
+print('Successfully broadcasted TX to Bitcoin node.')
