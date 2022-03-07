@@ -65,8 +65,8 @@ def read_keys_and_addresses(row_to_read):
 # Main script
 # -------------------------------
 
-sending_address, sending_private_key, sending_public_key = read_keys_and_addresses(14)
-recipient_address, recipient_private_key, recipient_public_key = read_keys_and_addresses(15)
+sending_address, sending_private_key, sending_public_key = read_keys_and_addresses(17)
+recipient_address, recipient_private_key, recipient_public_key = read_keys_and_addresses(18)
 
 print('sending address: ', sending_address)
 print('recipient address: ', recipient_address)
